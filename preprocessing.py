@@ -2,6 +2,8 @@ import numpy as np
 import urllib
 from pyspark import SparkContext, SparkConf
 import re
+
+#IN PROGRESS
 #we are using python 3 soooo dont need to specify utf8 :>
 #udf's 
 to_unicode(x):
@@ -48,14 +50,14 @@ def main():
     
     #make local copy
     X_train = urllibURLopener()
-    X_train.retrieve(base_url_train+"/X_train_"+dataset_size,"X_to_train.txt")
+    X_train.retrieve(base_url_train+"/X_train_"+dataset_size+"X_to_train.txt")
     y_train = urllibURLopener()
-    y_train.retrieve(base_url_train+"/y_train_"+dataset_size,"y_to_train.txt")
+    y_train.retrieve(base_url_train+"/y_train_"+dataset_size+"y_to_train.txt")
         
     X_test = urllibURLopener()
-    X_test.retrieve(base_url_test+"/X_test_"+dataset_size,"X_to_test.txt")
+    X_test.retrieve(base_url_test+"/X_test_"+dataset_size+"X_to_test.txt")
     y_test = urllibURLopener()
-    y_test.retrieve(base_url_test+"/y_test_"+dataset_size,"y_to_test.txt")
+    y_test.retrieve(base_url_test+"/y_test_"+dataset_size+"y_to_test.txt")
     
     #we convert the text to utf-8 "the common unicode scheme" according to python docs
     X_train=(sc.textFile("X_to_train.txt").lambda(to_unicode))
