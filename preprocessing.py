@@ -71,10 +71,10 @@ def main():
     x=(str("wget "+base_url_train+"y_train_"+dataset_size+" -O y_to_train.txt"))
     os.system(x)
 
-    x=(str("wget "+base_url_train+"X_test_"+dataset_size+" -O X_to_test.txt"))
+    x=(str("wget "+base_url_test+"X_test_"+dataset_size+" -O X_to_test.txt"))
     os.system(x)
 
-    x=(str("wget "+base_url_train+"y_test_"+dataset_size+" -O y_to_test.txt"))
+    x=(str("wget "+base_url_test+"y_test_"+dataset_size+" -O y_to_test.txt"))
     os.system(x)
 
     
