@@ -31,7 +31,14 @@ def fix_doc(x):
     #last step remove everything which is not a letter and  
     x=re.sub('[^a-z]',' ',x)
     x=re.sub("\s\s+|\+"," ", x)
-    return x
+    a=""
+    x=x.split(" ")
+    for i in range(0,len(x)):
+        if(x[i] not in stopWords.value):
+            a=a+x[i]+" "
+            
+    a=a.strip()
+    return a
 
 def getcats(x):
     #scans and extract stuff with CAT/cat in suffix and makes it lower case
@@ -61,7 +68,16 @@ def split_data(x):
             combined.append(single_row)
     return (combined)
         
-    
+def stop_words():
+    new_list=[]
+    with open("insert_name_here.txt") as f:
+        readStopWords = [x.strip('\n').encode("utf-8") for x in f.readlines()]
+    for i in range(0,len(readStopWords)):
+        new_list.append(str(readStopWords[i],"utf-8"))
+        
+   
+
+    return new_list
 
     
 def main():
@@ -72,7 +88,7 @@ def main():
         exit(-1)
     
     #create stopwords later 
-    #common_stop_words=sc.broadcast(sc.textFile("dothingsherelater.txt").collect())
+    #stopWords = sc.broadcast(read_stop_words())
     base_url_train=(sys.argv[1])
     base_url_test=(sys.argv[2])
     dataset_size=(sys.argv[3])
@@ -98,7 +114,8 @@ def main():
         
     X_test=(sc.textFile("X_to_test.txt").map(lambda x:x.encode("utf-8")))
     y_test=(sc.textFile("y_to_test.txt").map(lambda x:x.encode("utf-8")))
-    
+    #stopwords
+    #stopWords = sc.broadcast(stop_words())
     #we are going to do what dr quinn mentioned and not use my crazy key gens
     #fix_doc is going to be the main cleanup function
     
@@ -117,5 +134,13 @@ def main():
     train_complete=X_train.join(y_train).map(lambda x:(x[1][0],x[1][1]))
 
     test_complete=X_test.join(y_test).map(lambda x:(x[1][0],x[1][1]))
+    #splitting the X_train and y train's with multiple copies
+    #splitting the X_test and if required uncomment the y_test
+    X_train=train_complete.map(lambda x:x[0])
+    y_train=train_complete.map(lambda x:x[1])
+    X_test=test_complete.map(lambda x:x[0])
+    #y_test=test_complete.map(lambda x:x[1])
+    #create vocab
+    vocab=X_train.flatMap(lambda x:x.split(" ")).map(lambda x:re.sub(",","", x)).distinct()
 
 
