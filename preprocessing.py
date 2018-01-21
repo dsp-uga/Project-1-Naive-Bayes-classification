@@ -9,15 +9,9 @@ import re
 from collections import OrderedDict
 #we are using python 3 soooo dont need to specify utf8 :>
 #udf's 
-def to_unicode(x):
-    #accept a set of input, converts to unicode the parts it can and ignores the rest.
-    if type(x) != unicode:
-        x =  x.decode('utf-8','ignore')
-        #strip tuning for later as needed - i.e. fill in the () with ("stuff")
-        return x.strip()
-    else:
-        
-        return x.strip()
+
+#creates train_complete and test_complete which has the tuples in the directory format (X_train[0],y_train[0]) and (X_test[0],y_test[0])
+#do not use this for use with large file since we dont know the y_test
 def fix_doc(x):
     #basic preprocessing - removing the same stuff from project 0 but later we will add more 
     #example we can import punctuations from string and use it but later :>
@@ -40,14 +34,33 @@ def fix_doc(x):
     return x
 
 def getcats(x):
-    
+    #scans and extract stuff with CAT/cat in suffix and makes it lower case
+    x=str(x, "utf-8")
     x=x.split(",")
     fitered_data=[]
     for i in x:
         if ("CAT" or "cat") in i:
-            filtered_data.append(i)
-    return filtered_data
+            fitered_data.append(i.lower())
+    return fitered_data
+        
     
+def split_data(x):
+    #splits the key value pair into multiple rows if the value has multiple values eg,
+    #input [0,(first,second)] --> [[0,first],[0,second]]
+    combined=[]
+    
+    for j in range(0,len(x)):
+        
+        key=x[j][0]
+        value=x[j][1]
+        
+        for i in range(0,len(value)):
+            single_row=[]
+            single_row.append(key)
+            single_row.append(value[i])
+            combined.append(single_row)
+    return (combined)
+        
     
 
     
@@ -92,12 +105,17 @@ def main():
     X_train=X_train.zipWithIndex().map(lambda x:(x[1],fix_doc(str(x[0], "utf-8"))))
     X_test=X_test.zipWithIndex().map(lambda x:(x[1],fix_doc(str(x[0], "utf-8"))))
     
-    #mapping X_train to y_train and X_test to y_test
+    y_train=(y_train.map(getcats)\
+        .zipWithIndex().map(lambda x:(x[1],x[0]))).collect()
     
-    
-    #y_train=ytrain.map(lambda x:x.split("\r\n")).map(getcats)\
-    #        .lower().zipWithIndex().map(lambda x:x[1],x[0]).map(lambda x:OrderedDict((a,b) for (a,b) in x))
-        
-    
-    
+    y_test=(y_test.map(getcats)\
+        .zipWithIndex().map(lambda x:(x[1],x[0]))).collect()
+
+    y_train=sc.parallelize(split_data(y_train))
+    y_test=sc.parallelize(split_data(y_test))
+
+    train_complete=X_train.join(y_train).map(lambda x:(x[1][0],x[1][1]))
+
+    test_complete=X_test.join(y_test).map(lambda x:(x[1][0],x[1][1]))
+
 
