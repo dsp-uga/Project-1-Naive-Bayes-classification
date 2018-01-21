@@ -143,4 +143,11 @@ def main():
     #create vocab
     vocab=X_train.flatMap(lambda x:x.split(" ")).map(lambda x:re.sub(",","", x)).distinct()
 
+    #creating 2 grams
+    two_gram=list(itertools.combinations(vocab.collect(),2))
+    two_gram=sc.parallelize(two_gram)
+
+    #am not removing duplicates like (a,b) and (b,a) since the ordering might matter but its an easy fix
+    #if we plan to remove this cus all we need to do is impose set constraints
+
 
