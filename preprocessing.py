@@ -93,7 +93,7 @@ if __name__ == "__main__":
 
 
     #sc = SparkContext(conf = SparkConf().setAppName("Project1_stuff"))
-    if len(sys.argv) != 4:
+    if len(sys.argv) != 5:
         print("Usage: project_1.py <url_train> <url_test> <vsmall/small/large> <flag=0 if y_test is present 1 if not", file=sys.stderr)
         exit(-1)
     spark = SparkSession\
