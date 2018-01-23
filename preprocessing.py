@@ -1,10 +1,12 @@
 import os
 import numpy as np 
+import sys
 import urllib
 from pyspark import SparkConf
 from pyspark.context import SparkContext
-
-sc = SparkContext.getOrCreate(SparkConf().setMaster("local[*]"))
+from pyspark.sql import SparkSession
+from pyspark import SparkContext, SparkConf 
+sc = SparkContext.getOrCreate()
 import re
 from collections import OrderedDict
 #To run this code type python3 preprocessing.py <train_url_location> <test_url_location> <dataset_size> <0-you have y_test else 1 if you dont>
@@ -83,12 +85,22 @@ def stop_words():
     return new_list
 
 ######################################################################################################################
-def main():
+
+            
+            
+
+if __name__ == "__main__":
+
 
     #sc = SparkContext(conf = SparkConf().setAppName("Project1_stuff"))
-    if len(sys.argv) != 3:
+    if len(sys.argv) != 4:
         print("Usage: project_1.py <url_train> <url_test> <vsmall/small/large> <flag=0 if y_test is present 1 if not", file=sys.stderr)
         exit(-1)
+    spark = SparkSession\
+        .builder\
+        .appName("pre_process")\
+        .getOrCreate()
+    
     
     #create stopwords later 
     #stopWords = sc.broadcast(read_stop_words())
