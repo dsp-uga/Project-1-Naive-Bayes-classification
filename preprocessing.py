@@ -52,7 +52,7 @@ def getcats(x):
     fitered_data=[]
     for i in x:
         if ("CAT" or "cat") in i:
-            fitered_data.append(i.lower())
+            fitered_data.append(i)
     return fitered_data
         
 ######################################################################################################################  
