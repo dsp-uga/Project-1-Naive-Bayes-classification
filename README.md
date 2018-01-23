@@ -12,5 +12,6 @@ X_train_clean.txt, y_train_clean.txt, X_train_clean.txt and y_test_clean.txt (Op
 in the same folder where it is called. It will automatically collect the data and create these four files
 
 ***To delete the raw files please uncomment line number 189 and 190***
+If you have y_test i.e. the test lables please enter 0 in command line as the fourth parameter
 
-###If you have y_test i.e. the test lables please enter 0 in command line as the fourth parameter
+***stopwords file is not added here, please use your custom stopwords since i am still building one***
