@@ -7,6 +7,7 @@ from pyspark.context import SparkContext
 from pyspark.sql import SparkSession
 from pyspark import SparkContext, SparkConf 
 sc = SparkContext.getOrCreate()
+import math
 import re
 from collections import OrderedDict
 #To run this code type python3 preprocessing.py <train_url_location> <test_url_location> <dataset_size> <0-you have y_test else 1 if you dont>
@@ -190,6 +191,7 @@ if __name__ == "__main__":
     else:
         #We just have the X_test set and we write it to file
         submit=open('X_test_clean.txt',"w")
+        X_test=X_test.map(lambda x:x[1]
         X_test=X_test.collect()
 
         for i in X_test:
