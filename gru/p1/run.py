@@ -226,8 +226,36 @@ def calculate_documente_term_matrix(train_join,document_prior,bag_of_words):
     document_term_matrix = sc.broadcast(document_term_matrix)
     return document_term_matrix
 
+"""
+This function creates a model for the naive-bayse. 
+@param document_term_matrix is the document term matrix got from broadcast variable.
+@return naive bayes model which contains P(Wi/Cj), which is probability of each word i in document j.
+"""
+def naive_bayes(document_term_matrix):
+    #Get the broadcast variable of document term matrix.
+    document_term_matrix_rdd = sc.parallelize(document_term_matrix.value)
+    
+    #Subset the document term matrix to (doc lable,count) rdd.
+    #Then calcuate number of words in each document lable.
+    document_word_count = document_term_matrix_rdd.map(lambda x : (x[0][0],x[1]))
+    document_word_count = document_word_count.reduceByKey(add)
 
-
+    #Now find the posterior for each word by deviding a word count in a document by
+    #total number of the words in the document.
+    
+    #Convert the pair ((doc lable, word), count) into (doc lable,(word,count)). 
+    #It would help to implement a join.
+    naive_bayes_model = document_term_matrix_rdd.map(lambda x:(x[0][0],(x[0][1],x[1])))
+    #Join the DTM with the document word count. It would give the pair (doc lable, (word,count), document word count.)
+    #e.g. ('ccat',('aaa',5),5000)
+    naive_bayes_model = naive_bayes_model.join(document_word_count)
+    #Devide the word count in the document with total number of words in the document. 
+    #Also, conver the pair into ((doc lable,word), probability of a word i in doc j. P(Wi/Cj))
+    #e.g. (('mcat','aaa'),00021258503401360543)
+    naive_bayes_model = naive_bayes_model.map(lambda x:((x[0],x[1][0][0]),x[1][0][1]/x[1][1]))
+    #Broadcast
+    naive_bayes_model = sc.broadcast(naive_bayes_model.collect())
+    return naive_bayes_model
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -292,3 +320,7 @@ bag_of_words = calculate_bag_of_words(train_data)
 document_prior = calculate_document_prior(train_lable)
 #Calculate the Document Term Matrix.
 document_term_matrix = calculate_documente_term_matrix(train_join,document_prior,bag_of_words)
+
+#3. Create the Naive-Bayse Model.
+naive_bayes_model = naive_bayes(document_term_matrix)
+
