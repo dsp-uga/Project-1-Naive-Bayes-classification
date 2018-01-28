@@ -150,6 +150,24 @@ def calculate_bag_of_words(train_data):
     return
 
 
+"""
+This function calculates the document prior,which means the proportion of each type of document
+in the corpus. At the end broadcast the values.
+@param train_lable is the training lables of the training corpus.
+@return None.
+"""
+
+def calculate_document_prior(train_lable):
+    #Caculate the total count of each type of document in (lable,count) pair.
+    document_prior = train_lable.map(lambda lable:(lable,1)).reduceByKey(add)
+    #Find total number of documents.
+    total_lables = train_lable.count()
+    #Devide the count of each document with the total number of documents. Get Prior.
+    document_prior = document_prior.map(lambda lable:(lable[0], lable[1]/total_lables)).collect()
+    #Broadcast the document prior.
+    sc.broadcast(document_prior)
+    return
+
 #1. Fetching and cleaning data.
 #Create the Spark Config and Context.
 conf = SparkConf().setAppName('P1NaiveBayes')
@@ -205,4 +223,5 @@ train_lable = train_join.map(lambda join:join[1])
 #2. Document Term Matrix.
 #Calculate Bag of Words.
 calculate_bag_of_words(train_data)
-#Calculate Document Term Matrix.
+#Calculate Document Prior.
+calculate_document_prior(train_lable)
