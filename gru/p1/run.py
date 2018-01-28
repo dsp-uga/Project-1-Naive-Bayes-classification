@@ -10,7 +10,7 @@ Created on Tue Jan 23 23:25:59 2018
 This file is a consolidated file for the text analysis of the Reuter's text data. 
 It contains the following steps to perform machine learning operation on the
 text files.
-1. Clean the text : Remove Stop Words,punctuations,trim the data. 
+1. Clean the text : Remove Stop Words,punctuations,trim the data.Keep the text with 'cat' lables only.
 2. Create a Document Term Matrix: A matrix of word counts, where each word is
 a row lable and the document is the column lable. 
 3. Create a Naive Bayse model for the give training sets. 
@@ -26,6 +26,7 @@ import os
 import numpy as np 
 import urllib
 import re
+from operator import add
 
 """
 This function reads the Stop Words from the file containing stopwords. "stopWords.txt" 
@@ -79,7 +80,7 @@ def clean_data(text_data):
     text_data = re.sub('[0-9]+','',text_data)
     #text_data = re.sub(' [^a-z] ','',text_data)
     #Remove punctuation Marks
-    text_data= re.sub(r'[\.\,\:\;\'\"\!\?\-\+]',' ',text_data)
+    text_data= re.sub(r'[()\.\,\:\;\'\"\!\?\-\+\\\$\/]',' ',text_data)
     #Remove Stop Words and Strip.
     #Filtered variable to return.
     filtered_text_data = ''
@@ -128,6 +129,28 @@ def same_val(val):
      return val	
 
 
+
+"""
+This function calculates the Bag of the words, which is the list of distinct words.
+Here the bag of words broadcast variable also contains the overall count in the corpus.
+@param train_data is the training data for which the bag of words needed to be calculated.
+@return None.
+"""
+def calculate_bag_of_words(train_data):
+    #Split the data by spaces.
+    bag_of_words = train_data.flatMap(lambda text: text.split(" "))
+    #Strip the extra spaces and remove the words less than 2 characters long.
+    bag_of_words = bag_of_words.map(lambda word: word.strip()).filter(lambda word: len(word)>1)
+    #Create a (Word,Count) tuple and collect.
+    bag_of_words = bag_of_words.map(lambda word: (word,1)).reduceByKey(add).collect()
+    #Sort the vocabulary.
+    bag_of_words = sorted(bag_of_words)
+    #Broadcast this variable.
+    bag_of_words = sc.broadcast(bag_of_words)
+    return
+
+
+#1. Fetching and cleaning data.
 #Create the Spark Config and Context.
 conf = SparkConf().setAppName('P1NaiveBayes')
 sc = SparkContext.getOrCreate(conf=conf)
@@ -172,3 +195,14 @@ train_lable = train_lable.zipWithIndex().map(lambda lable:(lable[1],lable[0])).c
 train_lable = sc.parallelize(train_lable)
 #Convert each lable row with multiple rows into separate rows with single lable.
 train_lable_f = train_lable.filter(lambda lable: len(lable[1])>0).flatMapValues(same_val)
+#Join the training data and the lables and create one to one training-lable set.
+train_join = train_data.join(train_lable).map(lambda join:(join[1][0],join[1][1])).flatMapValues(same_val)
+#Get the training and lables back again from the join.
+train_data = train_join.map(lambda join:join[0])
+train_lable = train_join.map(lambda join:join[1])
+
+
+#2. Document Term Matrix.
+#Calculate Bag of Words.
+calculate_bag_of_words(train_data)
+#Calculate Document Term Matrix.
