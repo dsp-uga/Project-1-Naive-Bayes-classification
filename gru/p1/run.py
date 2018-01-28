@@ -52,18 +52,80 @@ use further.
 The URL and the file name is supposed to be passed to the function as parameters.
 @param url is the online URL of the file location.
 @param file_name is the text file name.
-@return No returns.
+@param log_file is the wget logs to be saved in the file.
 @return none.
 """
-def fetch_data(url,file_name):
+def fetch_data(url,file_name,log_file):
     #Create a string to get the file with wget command.
-    wget_cmd = (str('wget ' + url + file_name + ' -o ' + file_name))
+    wget_cmd = (str('wget ' + url + file_name + ' -o ' + log_file))
     #Run on the shell.
     os.system(wget_cmd)
     return
 
+"""
+This function cleans the text file with punctuations,special characters and extra white spaces.
+Also, all the text is converted into lower cases and then the stop words are being removed.  
+The text contains '&quot;' and '&amp;' special characters, which are also being removed. 
+@param text_data is the original text data file in the string format.
+@return filtered_text_data which is the required text output.
+
+"""
+def clean_data(text_data):
+    #Remove special characters.
+    text_data = re.sub('&quot;|&amp;',' ',text_data)
+    
+    text_data = text_data.lower()
+    #Remove digits.
+    text_data = re.sub('[0-9]+','',text_data)
+    #text_data = re.sub(' [^a-z] ','',text_data)
+    #Remove punctuation Marks
+    text_data= re.sub(r'[\.\,\:\;\'\"\!\?\-\+]',' ',text_data)
+    #Remove Stop Words and Strip.
+    #Filtered variable to return.
+    filtered_text_data = ''
+    #Split the data by space.
+    text_data = text_data.split(' ')
+    
+    #Inefficient: To be updated.
+    #For each string in the word, strip it and join again.
+    for word in range(0,len(text_data)):
+        if(text_data[word] not in stop_words.value):
+            filtered_text_data = filtered_text_data + text_data[word].strip() + ' '
+    
+    #Strip the extra spaces.
+    filtered_text_data = filtered_text_data.strip()
+    return filtered_text_data
+
+	
+"""
+This function removes the Y-Lables other than the lables having 'CAT' as their prefix or postfix.
+@param lables is the set of the lables from the file in RDD element.
+@return filtered lables in a list.
+"""
+def remove_lables(lables):
+    #Convert the lables into utf-8 string.
+    lables = str(lables,'utf-8')
+    #Convert the lables into lowercase.
+    lables = lables.lower()
+    #Split the labes by ,
+    lables = lables.split(',')
+    #Filtered lables.
+    filtered_lables = []
+    #Keep the lables,which only contains 'cat'.
+    #Inefficient code: Need to replace.
+    for lable in lables:
+        if 'cat' in lable:
+            filtered_lables.append(lable)
+    return filtered_lables
 
 
+"""
+Returns the same value as argument. Used for the flatMapValues function.
+@param any value.
+@return return the same value as in the argument.
+"""
+def same_val(val):
+     return val	
 
 
 #Create the Spark Config and Context.
@@ -72,3 +134,41 @@ sc = SparkContext.getOrCreate(conf=conf)
 
 #Fetch the stopwords into a list and broadcast them across.
 stop_words = sc.broadcast(read_stop_words('stopWords.txt'))
+
+#Get the files and load them into memory.
+#To be done: Pass the URL-File Name via runtime arguments. 
+arg_url_train = 'https://storage.googleapis.com/uga-dsp/project1/train/'
+arg_text_train = 'X_train_vsmall.txt'
+arg_lable_train = 'y_train_vsmall.txt'
+train_text_log = 'training_data_log.txt'
+train_lable_log = 'training_lables_log.txt'
+
+arg_url_test = 'https://storage.googleapis.com/uga-dsp/project1/test/'
+arg_text_test = 'X_test_vsmall.txt'
+arg_lable_test = 'y_test_vsmall.txt'
+test_text_log = 'test_data_log.txt'
+test_lable_log = 'test_lables_log.txt'
+
+#Fetch the text-lable training files and load.
+fetch_data(arg_url_train,arg_text_train,train_text_log)
+fetch_data(arg_url_train,arg_lable_train,train_lable_log)
+
+
+#Create RDDs for the fetched files. 
+#Also Convert files into the "UTF-8" format for convinience.
+#http://spark.apache.org/docs/2.1.0/api/python/pyspark.html
+train_data = sc.textFile(arg_text_train).map(lambda x:x.encode("utf-8"))
+train_lable= sc.textFile(arg_lable_train).map(lambda x:x.encode("utf-8"))
+
+
+#Clean the training text file and index it with the zip with index method. 
+train_data = train_data.zipWithIndex().map(lambda text:(text[1], clean_data(str(text[0],'utf-8'))))
+
+#Remove the lables except the ones having 'cat'.
+train_lable = train_lable.map(remove_lables)
+#Apply Index to each row.
+train_lable = train_lable.zipWithIndex().map(lambda lable:(lable[1],lable[0])).collect()
+#Get it into an RDD.
+train_lable = sc.parallelize(train_lable)
+#Convert each lable row with multiple rows into separate rows with single lable.
+train_lable_f = train_lable.filter(lambda lable: len(lable[1])>0).flatMapValues(same_val)
