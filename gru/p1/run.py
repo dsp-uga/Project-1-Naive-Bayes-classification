@@ -134,7 +134,7 @@ def same_val(val):
 This function calculates the Bag of the words, which is the list of distinct words.
 Here the bag of words broadcast variable also contains the overall count in the corpus.
 @param train_data is the training data for which the bag of words needed to be calculated.
-@return None.
+@return the bag of the words.
 """
 def calculate_bag_of_words(train_data):
     #Split the data by spaces.
@@ -147,14 +147,14 @@ def calculate_bag_of_words(train_data):
     bag_of_words = sorted(bag_of_words)
     #Broadcast this variable.
     bag_of_words = sc.broadcast(bag_of_words)
-    return
+    return bag_of_words
 
 
 """
 This function calculates the document prior,which means the proportion of each type of document
 in the corpus. At the end broadcast the values.
 @param train_lable is the training lables of the training corpus.
-@return None.
+@return the document prior.
 """
 
 def calculate_document_prior(train_lable):
@@ -165,8 +165,73 @@ def calculate_document_prior(train_lable):
     #Devide the count of each document with the total number of documents. Get Prior.
     document_prior = document_prior.map(lambda lable:(lable[0], lable[1]/total_lables)).collect()
     #Broadcast the document prior.
-    sc.broadcast(document_prior)
-    return
+    document_prior = sc.broadcast(document_prior)
+    return document_prior
+
+"""
+This function step by step calculates document term matrix. It goes by this:
+1. Calculate the possible combination of words with the document labels. 
+2. Calculate actual word-document combination.
+3. Merge them up to create the matrix.
+4. Broadcast this matrix.
+@param train_join is the text-lable RDD for the training set.
+@param document_prior is the broadcast variable of the document prior list.
+@param bag_of_words is the broadcast variable for the bag of the words.
+@return Document term matrix.
+"""
+def calculate_documente_term_matrix(train_join,document_prior,bag_of_words):
+    #Get the Bag of the words. Words only RDD from the Broadcast variable.
+    bag_of_words_wonly = sc.parallelize(bag_of_words.value)
+    bag_of_words_wonly = bag_of_words_wonly.map(lambda lable: (lable[0]))
+    #Get the lables from the Lable priors broadcast variable.
+    document_prior_lables = sc.parallelize(document_prior.value)
+    document_prior_lables = document_prior_lables.map(lambda lable: (lable[0]))
+    #Create a cartisian of the words and the lable and add 1 count to each pair.
+    #The output of this code would create a pair ((document,word),1) pair for each
+    #possible combination of document and word by taking a cartisian.
+    document_term_matrix = document_prior_lables.cartesian(bag_of_words_wonly)
+    document_term_matrix = sc.parallelize(sorted(document_term_matrix.collect()))
+    document_term_matrix = document_term_matrix.map(lambda word:(word,1))
+    #Below code creates a word-document matrix with existance of such pair in the
+    #document. Eg. (('ccat','aaa'),5)
+    #The only words which are paired with the document are actually in that document.
+    
+    #Create('document lable','text') pair.
+    document_word_count = train_join.map(lambda x: (x[1],x[0]))
+    #Split the text into words.
+    document_word_count = document_word_count.map(lambda x:(x[0],x[1].split(" ")))
+    #Convert the (lable,list of words) into a separate (lable,word) pair for each word.
+    document_word_count = document_word_count.flatMapValues(same_val)
+    #Remove the rows, which have word length less than 2.
+    document_word_count = document_word_count.filter(lambda word : len(word[1]) > 1)
+    #Create a pair ((lable,word),0).
+    document_word_count = document_word_count.map(lambda word:(word,0))
+    #Calculate each (lable,word) pairs and sum them up. The pair would look like ((lable,word),counter)
+    #e.g. (('ccat','aaa'),5)
+    document_word_count = sorted(document_word_count.countByKey().items())
+    document_word_count = sc.parallelize(document_word_count)
+
+
+    #Merge the possible pairs with the actual pairs and create a document term matrix.
+    
+    #This would create a merged pair of ((lable,word),(1,actual count value or None))
+    document_term_matrix = document_term_matrix.leftOuterJoin(document_word_count)
+    #Sum up 1+ (Actual Counts). Replace None with 0. Now, the pair is ((lable,word),count)
+    #The document term matrix is ready !!
+    document_term_matrix = document_term_matrix.map(lambda x: (x[0],x[1][0] + int(0 if x[1][1] is None else x[1][1])))
+    #Sort the matrix.
+    document_term_matrix = sorted(document_term_matrix.collect())
+    #Broadcast this matrix.
+    #Need to check if the matrix is too large for the broadcast variable.
+    document_term_matrix = sc.broadcast(document_term_matrix)
+    return document_term_matrix
+
+
+
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+
 
 #1. Fetching and cleaning data.
 #Create the Spark Config and Context.
@@ -222,6 +287,8 @@ train_lable = train_join.map(lambda join:join[1])
 
 #2. Document Term Matrix.
 #Calculate Bag of Words.
-calculate_bag_of_words(train_data)
+bag_of_words = calculate_bag_of_words(train_data)
 #Calculate Document Prior.
-calculate_document_prior(train_lable)
+document_prior = calculate_document_prior(train_lable)
+#Calculate the Document Term Matrix.
+document_term_matrix = calculate_documente_term_matrix(train_join,document_prior,bag_of_words)
