@@ -187,11 +187,11 @@ def calculate_documente_term_matrix(train_join,document_prior,bag_of_words):
     document_prior_lables = sc.parallelize(document_prior.value)
     document_prior_lables = document_prior_lables.map(lambda lable: (lable[0]))
     #Create a cartisian of the words and the lable and add 1 count to each pair.
-    #The output of this code would create a pair ((document,word),1) pair for each
+    #The output of this code would create a pair ((document,word),0) pair for each
     #possible combination of document and word by taking a cartisian.
     document_term_matrix = document_prior_lables.cartesian(bag_of_words_wonly)
     document_term_matrix = sc.parallelize(sorted(document_term_matrix.collect()))
-    document_term_matrix = document_term_matrix.map(lambda word:(word,1))
+    document_term_matrix = document_term_matrix.map(lambda word:(word,0))
     #Below code creates a word-document matrix with existance of such pair in the
     #document. Eg. (('ccat','aaa'),5)
     #The only words which are paired with the document are actually in that document.
@@ -257,6 +257,118 @@ def naive_bayes(document_term_matrix):
     naive_bayes_model = sc.broadcast(naive_bayes_model.collect())
     return naive_bayes_model
 
+
+
+
+
+"""
+Given the document priors, test data and the naive bayes predictor data, this method predicts the output.
+It uses the log probabilities to remove possibilities of underflow of numbers due to very small probability numbers.
+@param test_data is the testing data set.
+@param document_prior is the document lable prior probabilites got from broadcast variable.
+@param naive_bayes_model is again a broadcast variable which gives the word probability given a document. 
+@return predicted classes in (index,lable) pair.
+"""
+def predict_naive_bayes(test_data,document_prior,naive_bayes_model):
+    #Get the doc,word count for each document and word.
+    
+    #Get the test text data and zip it with index.Make the index as key.
+    predict_naive_bayes = test_data.zipWithIndex().map(lambda text: (text[1],text[0]))
+    #Split the text by Space, which would give a pair (index, [list of words])
+    predict_naive_bayes = predict_naive_bayes.map(lambda text:(text[0],text[1].split(" ")))
+    #Separate each row in (index,word) format.
+    predict_naive_bayes = predict_naive_bayes.flatMapValues(same_val)
+    #Remove the row with the word size less than 2.
+    predict_naive_bayes = predict_naive_bayes.filter(lambda text: len(text[1]) > 1)
+    #Pad the pair by 0. Convert into a pair ((index,word),0)
+    predict_naive_bayes = predict_naive_bayes.map(lambda word:(word,0))
+    #Sum up the pairs with similar(index,word) key.
+    predict_naive_bayes = sorted(predict_naive_bayes.countByKey().items())
+    #Parallelize.
+    predict_naive_bayes = sc.parallelize(predict_naive_bayes)
+    
+    #Get the document prior lables and create a cartisian of the them to have possible combinations
+    #of (index,word) - lable.
+    
+    #Get the document prior from the 
+    document_prior_lables = sc.parallelize(document_prior.value)
+    #Get the lables only, ignore probabilities.
+    document_prior_lables = document_prior_lables.map(lambda lable: (lable[0]))
+    #Cartesian with the current list. Should give a pair like (((0, 'added'), 1), 'mcat'). (((index,word),count),lable).
+    predict_naive_bayes = predict_naive_bayes.cartesian(document_prior_lables)
+    
+    
+    #Convert the data pair into ((lable,word),(index,count),doc-word probability) by merging with 
+    #naive bayes likelihood probabilities.
+    #e.g. (('mcat', 'good'), ((0, 1), 0.0008503401360544217))
+    
+    #Update the structure into ((lable,word),(index,count))
+    predict_naive_bayes = predict_naive_bayes.map(lambda x : ((x[1],x[0][0][1]),(x[0][0][0],x[0][1])))
+    #Get naive bayes model.
+    naive_bayes_model = sc.parallelize(naive_bayes_model.value)
+    #Join the current list with the naive bayes model to convert the data into the desired format.
+    predict_naive_bayes = predict_naive_bayes.join(naive_bayes_model)
+
+    #Get the log-sum of all the probabilities.
+    # Log (P(Cj)) + SUM ( Log (P(Wi/Cj)))
+    
+    #Get the summed log-probability of each word in the document for each lable.
+    #e.g. ((0, 'ccat'), -372.50010540505934)
+    
+    #Multiply the log(P(Wi/Cj)) with the number of words.
+    predict_naive_bayes = predict_naive_bayes.map(lambda x: ((x[1][0][0],x[0][0]),x[1][0][1] * math.log(x[1][1])))
+    #Sum all the log-sum for (index,lable) key. e.g. ((0, 'mcat'), -399.2261060687056)
+    predict_naive_bayes = predict_naive_bayes.reduceByKey(add)
+    #Sort the lables.
+    predict_naive_bayes = sorted(predict_naive_bayes.collect())
+    #Parallelize.
+    predict_naive_bayes = sc.parallelize(predict_naive_bayes)
+    
+    
+    #Add the document prior probability log value. For that need to join the current list
+    #with the document prior list.
+    
+    #Make the document lable as the key.
+    predict_naive_bayes = predict_naive_bayes.map(lambda x : (x[0][1],(x[0][0],x[1])))
+    #Get the document priors.
+    document_prior_rdd =  sc.parallelize(document_prior.value)
+    #Join with our list. The output should be (lable, ((index,log probabilities),document prior))
+    # e.g. ('mcat', ((3, -741.0503284960512), 0.15584415584415584))
+    predict_naive_bayes = predict_naive_bayes.join(document_prior_rdd)
+    #Add the doc-prior log probability to the sum and sort. The pair should look like
+    #e.g. (0, (-373.3781749241133, 'ccat'))
+    predict_naive_bayes = predict_naive_bayes.map(lambda x : (x[1][0][0],(x[1][0][1] + math.log(x[1][1]),x[0])))
+    predict_naive_bayes = sc.parallelize(sorted (predict_naive_bayes.collect()))
+    
+    #Now get the maximum log probabilities for the document.
+    predict_naive_bayes = predict_naive_bayes.reduceByKey(max)
+    #Keep the (index,lable) onlye. e.g. (0,'ccat') and sort the list.
+    predict_naive_bayes = sorted(predict_naive_bayes.map(lambda x : (x[0], x[1][1])).collect())
+    
+    
+    #Broadcast the results.
+    predict_naive_bayes = sc.broadcast(predict_naive_bayes)
+    return predict_naive_bayes
+
+"""
+Calculate the accuracy of the predicted results. => correct predicted lables/total lables.
+@param test_lable is the list of the actual test lables.
+@param predict_naive_bayes is the list of the predicted test lables.
+@return the accuracy numbers.
+"""
+def result_analysis(test_lable,predict_naive_bayes):
+    #Index the test lables.
+    test_lable_rdd= test_lable.zipWithIndex().map(lambda x : (x[1],x[0]))
+    #Get the join of the predicted and the actual lables.
+    accuracy_list = sc.parallelize(predict_naive_bayes.value).join(test_lable_rdd)
+    #Filter the list to have only lables matching with output.
+    accuracy_list = accuracy_list.filter(lambda lable : lable[1][0] == lable[1][1])
+    #Get the accuracy numbers.
+    accuracy = accuracy_list.count()/test_lable_rdd.count()
+    return accuracy
+
+
+
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 
@@ -305,9 +417,9 @@ train_lable = train_lable.zipWithIndex().map(lambda lable:(lable[1],lable[0])).c
 #Get it into an RDD.
 train_lable = sc.parallelize(train_lable)
 #Convert each lable row with multiple rows into separate rows with single lable.
-train_lable_f = train_lable.filter(lambda lable: len(lable[1])>0).flatMapValues(same_val)
+train_lable = train_lable.filter(lambda lable: len(lable[1])>0).flatMapValues(same_val)
 #Join the training data and the lables and create one to one training-lable set.
-train_join = train_data.join(train_lable).map(lambda join:(join[1][0],join[1][1])).flatMapValues(same_val)
+train_join = train_data.join(train_lable).map(lambda join:(join[1][0],join[1][1]))
 #Get the training and lables back again from the join.
 train_data = train_join.map(lambda join:join[0])
 train_lable = train_join.map(lambda join:join[1])
@@ -323,4 +435,42 @@ document_term_matrix = calculate_documente_term_matrix(train_join,document_prior
 
 #3. Create the Naive-Bayse Model.
 naive_bayes_model = naive_bayes(document_term_matrix)
+
+
+#4 Predict the classes.
+#Repeat the same process for the test as of training data.
+#Fetch the text-lable testing files and load.
+fetch_data(arg_url_test,arg_text_test,test_text_log)
+fetch_data(arg_url_test,arg_lable_test,test_lable_log)
+
+
+#Create RDDs for the fetched files. 
+#Also Convert files into the "UTF-8" format for convinience.
+#http://spark.apache.org/docs/2.1.0/api/python/pyspark.html
+test_data = sc.textFile(arg_text_test).map(lambda x:x.encode("utf-8"))
+test_lable= sc.textFile(arg_lable_test).map(lambda x:x.encode("utf-8"))
+
+
+#Clean the testing text file and index it with the zip with index method. 
+test_data = test_data.zipWithIndex().map(lambda text:(text[1], clean_data(str(text[0],'utf-8'))))
+
+#Remove the lables except the ones having 'cat'.
+test_lable = test_lable.map(remove_lables)
+#Apply Index to each row.
+test_lable = test_lable.zipWithIndex().map(lambda lable:(lable[1],lable[0])).collect()
+#Get it into an RDD.
+test_lable = sc.parallelize(test_lable)
+#Convert each lable row with multiple rows into separate rows with single lable.
+test_lable = test_lable.filter(lambda lable: len(lable[1])>0).flatMapValues(same_val)
+#Join the testing data and the lables and create one to one testing-lable set.
+test_join = test_data.join(test_lable).map(lambda join:(join[1][0],join[1][1]))
+#Get the testing and lables back again from the join.
+test_data = test_join.map(lambda join:join[0])
+test_lable = test_join.map(lambda join:join[1])
+#Predict the classes for the test data.
+predict_naive_bayes = predict_naive_bayes(test_data,document_prior,naive_bayes_model)
+
+
+#5.Calculate the accuracy.
+accuracy = result_analysis(test_lable,predict_naive_bayes)
 
