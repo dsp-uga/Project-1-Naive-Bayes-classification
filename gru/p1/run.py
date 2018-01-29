@@ -472,7 +472,7 @@ def run_naive_bayes(data_set):
     predict_naive_bayes = predict_naive_bayes(test_data,document_prior,naive_bayes_model)
     
     #5.Calculate the accuracy.
-    accuracy = result_analysis(test_lable,predict_naive_bayes)
+    #accuracy = result_analysis(test_lable,predict_naive_bayes)
 
     
     return predict_naive_bayes
