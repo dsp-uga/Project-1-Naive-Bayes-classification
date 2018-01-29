@@ -371,106 +371,109 @@ def result_analysis(test_lable,predict_naive_bayes):
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
+"""
+This method runs the whole naive-bayes method given the data set to fetch from the server and returns
+the prediction result of the corpus.
+@param data_set is either 'vsmall','small' or 'large'.
+@return is the prediction result in (Zip Index of test document, 'Lable') format.
+"""
+def run_naive_bayes(data_set):
+    #1. Fetching and cleaning data.
+    #Create the Spark Config and Context.
+    conf = SparkConf().setAppName('P1NaiveBayes')
+    sc = SparkContext.getOrCreate(conf=conf)
+
+    #Fetch the stopwords into a list and broadcast them across.
+    stop_words = sc.broadcast(read_stop_words('stopWords.txt'))
+
+    #Get the files and load them into memory.
+    #To be done: Pass the URL-File Name via runtime arguments. 
+    arg_url_train = 'https://storage.googleapis.com/uga-dsp/project1/train/'
+    arg_text_train = 'X_train_' + data_set + '.txt'
+    arg_lable_train = 'y_train_' + data_set + '.txt'
+    train_text_log = 'training_data_log.txt'
+    train_lable_log = 'training_lables_log.txt'
+    
+    arg_url_test = 'https://storage.googleapis.com/uga-dsp/project1/test/'
+    arg_text_test = 'X_test_' + data_set + '.txt'
+    arg_lable_test = 'y_test_' + data_set + '.txt'
+    test_text_log = 'test_data_log.txt'
+    test_lable_log = 'test_lables_log.txt'
+    
+    #Fetch the text-lable training files and load.
+    fetch_data(arg_url_train,arg_text_train,train_text_log)
+    fetch_data(arg_url_train,arg_lable_train,train_lable_log)
 
 
-#1. Fetching and cleaning data.
-#Create the Spark Config and Context.
-conf = SparkConf().setAppName('P1NaiveBayes')
-sc = SparkContext.getOrCreate(conf=conf)
-
-#Fetch the stopwords into a list and broadcast them across.
-stop_words = sc.broadcast(read_stop_words('stopWords.txt'))
-
-#Get the files and load them into memory.
-#To be done: Pass the URL-File Name via runtime arguments. 
-arg_url_train = 'https://storage.googleapis.com/uga-dsp/project1/train/'
-arg_text_train = 'X_train_vsmall.txt'
-arg_lable_train = 'y_train_vsmall.txt'
-train_text_log = 'training_data_log.txt'
-train_lable_log = 'training_lables_log.txt'
-
-arg_url_test = 'https://storage.googleapis.com/uga-dsp/project1/test/'
-arg_text_test = 'X_test_vsmall.txt'
-arg_lable_test = 'y_test_vsmall.txt'
-test_text_log = 'test_data_log.txt'
-test_lable_log = 'test_lables_log.txt'
-
-#Fetch the text-lable training files and load.
-fetch_data(arg_url_train,arg_text_train,train_text_log)
-fetch_data(arg_url_train,arg_lable_train,train_lable_log)
-
-
-#Create RDDs for the fetched files. 
-#Also Convert files into the "UTF-8" format for convinience.
-#http://spark.apache.org/docs/2.1.0/api/python/pyspark.html
-train_data = sc.textFile(arg_text_train).map(lambda x:x.encode("utf-8"))
-train_lable= sc.textFile(arg_lable_train).map(lambda x:x.encode("utf-8"))
-
-
-#Clean the training text file and index it with the zip with index method. 
-train_data = train_data.zipWithIndex().map(lambda text:(text[1], clean_data(str(text[0],'utf-8'))))
-
-#Remove the lables except the ones having 'cat'.
-train_lable = train_lable.map(remove_lables)
-#Apply Index to each row.
-train_lable = train_lable.zipWithIndex().map(lambda lable:(lable[1],lable[0])).collect()
-#Get it into an RDD.
-train_lable = sc.parallelize(train_lable)
-#Convert each lable row with multiple rows into separate rows with single lable.
-train_lable = train_lable.filter(lambda lable: len(lable[1])>0).flatMapValues(same_val)
-#Join the training data and the lables and create one to one training-lable set.
-train_join = train_data.join(train_lable).map(lambda join:(join[1][0],join[1][1]))
-#Get the training and lables back again from the join.
-train_data = train_join.map(lambda join:join[0])
-train_lable = train_join.map(lambda join:join[1])
+    #Create RDDs for the fetched files. 
+    #Also Convert files into the "UTF-8" format for convinience.
+    #http://spark.apache.org/docs/2.1.0/api/python/pyspark.html
+    train_data = sc.textFile(arg_text_train).map(lambda x:x.encode("utf-8"))
+    train_lable= sc.textFile(arg_lable_train).map(lambda x:x.encode("utf-8"))
+    
+    #Clean the training text file and index it with the zip with index method. 
+    train_data = train_data.zipWithIndex().map(lambda text:(text[1], clean_data(str(text[0],'utf-8'))))
+    #Remove the lables except the ones having 'cat'
+    train_lable = train_lable.map(remove_lables)
+    #Apply Index to each row.
+    train_lable = train_lable.zipWithIndex().map(lambda lable:(lable[1],lable[0])).collect()
+    #Get it into an RDD.
+    train_lable = sc.parallelize(train_lable)
+    #Convert each lable row with multiple rows into separate rows with single lable.
+    train_lable = train_lable.filter(lambda lable: len(lable[1])>0).flatMapValues(same_val)
+    #Join the training data and the lables and create one to one training-lable set.
+    train_join = train_data.join(train_lable).map(lambda join:(join[1][0],join[1][1]))
+    #Get the training and lables back again from the join.
+    train_data = train_join.map(lambda join:join[0])
+    train_lable = train_join.map(lambda join:join[1])
+    
+    #2. Document Term Matrix.
+    #Calculate Bag of Words.
+    bag_of_words = calculate_bag_of_words(train_data)
+    #Calculate Document Prior.
+    document_prior = calculate_document_prior(train_lable)
+    #Calculate the Document Term Matrix.
+    document_term_matrix = calculate_documente_term_matrix(train_join,document_prior,bag_of_words)
+    
+    #3. Create the Naive-Bayse Model.
+    naive_bayes_model = naive_bayes(document_term_matrix)
+    
+    #4 Predict the classes.
+    #Repeat the same process for the test as of training data.
+    #Fetch the text-lable testing files and load.
+    fetch_data(arg_url_test,arg_text_test,test_text_log)
+    fetch_data(arg_url_test,arg_lable_test,test_lable_log)
 
 
-#2. Document Term Matrix.
-#Calculate Bag of Words.
-bag_of_words = calculate_bag_of_words(train_data)
-#Calculate Document Prior.
-document_prior = calculate_document_prior(train_lable)
-#Calculate the Document Term Matrix.
-document_term_matrix = calculate_documente_term_matrix(train_join,document_prior,bag_of_words)
-
-#3. Create the Naive-Bayse Model.
-naive_bayes_model = naive_bayes(document_term_matrix)
+    #Create RDDs for the fetched files. 
+    #Also Convert files into the "UTF-8" format for convinience.
+    #http://spark.apache.org/docs/2.1.0/api/python/pyspark.html
+    test_data = sc.textFile(arg_text_test).map(lambda x:x.encode("utf-8"))
+    test_lable= sc.textFile(arg_lable_test).map(lambda x:x.encode("utf-8"))
 
 
-#4 Predict the classes.
-#Repeat the same process for the test as of training data.
-#Fetch the text-lable testing files and load.
-fetch_data(arg_url_test,arg_text_test,test_text_log)
-fetch_data(arg_url_test,arg_lable_test,test_lable_log)
+    #Clean the testing text file and index it with the zip with index method. 
+    test_data = test_data.zipWithIndex().map(lambda text:(text[1], clean_data(str(text[0],'utf-8'))))
 
+    #Remove the lables except the ones having 'cat'.
+    test_lable = test_lable.map(remove_lables)
+    #Apply Index to each row.
+    test_lable = test_lable.zipWithIndex().map(lambda lable:(lable[1],lable[0])).collect()
+    #Get it into an RDD.
+    test_lable = sc.parallelize(test_lable)
+    #Convert each lable row with multiple rows into separate rows with single lable.
+    test_lable = test_lable.filter(lambda lable: len(lable[1])>0).flatMapValues(same_val)
+    #Join the testing data and the lables and create one to one testing-lable set.
+    test_join = test_data.join(test_lable).map(lambda join:(join[1][0],join[1][1]))
+    #Get the testing and lables back again from the join.
+    test_data = test_join.map(lambda join:join[0])
+    test_lable = test_join.map(lambda join:join[1])
+    #Predict the classes for the test data.
+    predict_naive_bayes = predict_naive_bayes(test_data,document_prior,naive_bayes_model)
+    
+    #5.Calculate the accuracy.
+    accuracy = result_analysis(test_lable,predict_naive_bayes)
 
-#Create RDDs for the fetched files. 
-#Also Convert files into the "UTF-8" format for convinience.
-#http://spark.apache.org/docs/2.1.0/api/python/pyspark.html
-test_data = sc.textFile(arg_text_test).map(lambda x:x.encode("utf-8"))
-test_lable= sc.textFile(arg_lable_test).map(lambda x:x.encode("utf-8"))
-
-
-#Clean the testing text file and index it with the zip with index method. 
-test_data = test_data.zipWithIndex().map(lambda text:(text[1], clean_data(str(text[0],'utf-8'))))
-
-#Remove the lables except the ones having 'cat'.
-test_lable = test_lable.map(remove_lables)
-#Apply Index to each row.
-test_lable = test_lable.zipWithIndex().map(lambda lable:(lable[1],lable[0])).collect()
-#Get it into an RDD.
-test_lable = sc.parallelize(test_lable)
-#Convert each lable row with multiple rows into separate rows with single lable.
-test_lable = test_lable.filter(lambda lable: len(lable[1])>0).flatMapValues(same_val)
-#Join the testing data and the lables and create one to one testing-lable set.
-test_join = test_data.join(test_lable).map(lambda join:(join[1][0],join[1][1]))
-#Get the testing and lables back again from the join.
-test_data = test_join.map(lambda join:join[0])
-test_lable = test_join.map(lambda join:join[1])
-#Predict the classes for the test data.
-predict_naive_bayes = predict_naive_bayes(test_data,document_prior,naive_bayes_model)
-
-
-#5.Calculate the accuracy.
-accuracy = result_analysis(test_lable,predict_naive_bayes)
+    
+    return predict_naive_bayes
 
