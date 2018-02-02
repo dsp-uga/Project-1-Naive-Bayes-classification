@@ -20,6 +20,9 @@ ps = PorterStemmer()
 #To delete the raw files please uncomment line number 189 and 190
 #If you have y_test i.e. the test lables please enter 0 in command line as the fourth parameter
 ########################################################################################################################
+"""Thia function does the basic preprocessing of the data.It remove punctuations,special characters and extra white spaces. All the words are 
+   converted to lowercase.The text also contains characters like &quot and &amp which have been removed.
+"""
 def fix_doc(x):
     #basic preprocessing - removing the same stuff from project 0 but later we will add more 
     #example we can import punctuations from string and use it but later :>
@@ -30,9 +33,6 @@ def fix_doc(x):
 
     #x=x.strip(".,:;'!?")
     
-    # next we will do maulik's stuff before making it lower 
-    # uncomment to use also maybe verify my logic 
-    #x=re.sub("[ ([A-Z][a-zA-Z]*\s*)+]","",x) 
     
     #next we change to lower case 
     #and remove quote and amp
@@ -50,6 +50,11 @@ def fix_doc(x):
     a=a.strip()
     return a
 #######################################################################################################################
+"""
+This function scans the preprocessed files and returns data containing all the four classes or all the adta containing CAT
+which is the suffix of the four classes.
+"""
+
 def getcats(x):
     #scans and extract stuff with CAT/cat in suffix and makes it lower case
     x=str(x, "utf-8")
@@ -61,6 +66,11 @@ def getcats(x):
     return fitered_data
         
 ######################################################################################################################  
+"""
+Some words in the text belong to two different classes.In such a case, the data is saved twice as belonging to a different 
+in each case.
+"""
+
 def split_data(x):
     #splits the key value pair into multiple rows if the value has multiple values eg,
     #input [0,(first,second)] --> [[0,first],[0,second]]
@@ -80,9 +90,11 @@ def split_data(x):
 ######################################################################################################################
 
 ######################################################################################################################
-#def create_array(x):
-#    ccat=
-######################################################################################################################
+"""
+This function calculates the number of terms belonging to each of the four classes and returns the count for all the
+classes.
+"""
+
 def create_array1(x,a,b,c,d):
     
     ccat=1
@@ -121,6 +133,11 @@ def create_array1(x,a,b,c,d):
         gcat=math.log(gcat/d)
     '''
     return [ccat,mcat,ecat,gcat]
+###################################################################################################################
+"""
+"""
+
+
 def predict_class(x,a,b,c,d):
     class_values=group_by_class.value    
 
@@ -171,8 +188,12 @@ def predict_class(x,a,b,c,d):
     else:
         return "GCAT"
         #return str(product[3])
+###################################################################################################################
+"""
+This function reads the Stop Words from the file containing stopwords. "stopWords.txt" 
+It uses a subset of the words given from the nltk python library.
 
-
+"""
             
             
 
