@@ -13,10 +13,10 @@ Reference: https://github.com/stanfordnlp/CoreNLP/blob/master/data/edu/stanford/
 
 
 
-#Code Base:
+#CodeBase:
 
 There are two branches of the codes:
-1 master: Which contains codes created-updated by Maulik and Aishwarya.
+1. master: Which contains codes created-updated by Maulik and Aishwarya.
 How to run:  $SPARK_HOME/bin/spark-submit  <Project-Home>/gru/p1/run.py
 Bugs : The large dataset runs crashes on small machines. 
 
