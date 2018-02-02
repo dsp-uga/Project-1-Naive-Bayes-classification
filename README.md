@@ -47,9 +47,11 @@ Better way to articulate the results. eg. F-Score.
 
 #References
 http://spark.apache.org/docs/2.1.0/api/python/pyspark.html
+
 https://stackoverflow.com/questions/3930188/how-to-convert-nonetype-to-int-or-string
 https://stackoverflow.com/questions/32356017/generate-single-json-file-for-pyspark-rdd
 https://github.com/dsp-uga/mauliknshah-p0
+
 https://web.stanford.edu/class/cs124/lec/naivebayes.pdf
 https://stats.stackexchange.com/questions/163088/how-to-use-log-probabilities-for-gaussian-naive-bayes
 
