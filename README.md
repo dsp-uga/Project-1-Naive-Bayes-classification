@@ -18,7 +18,7 @@ Reference: https://github.com/stanfordnlp/CoreNLP/blob/master/data/edu/stanford/
 There are two branches of the codes:
 1. master: Which contains codes created-updated by Maulik and Aishwarya.
 How to run:  $SPARK_HOME/bin/spark-submit  <Project-Home>/gru/p1/run.py
-Bugs : The large dataset runs crashes on small machines. 
+Bugs : The large dataset runs crashes on small machines. The parameter for the data-set is hardcoded and should be converted to command-line argument.
 
 2. test-1 : Which contains codes created-updated by Raunak and Aishwarya.
 How to run:
@@ -44,3 +44,12 @@ Aishwarya - data-dictionary creation, Code Optimization, documentation.
 Implement N-grams inside this algorithm. 
 Update the Stop-words for better performance. 
 Better way to articulate the results. 
+
+#References
+http://spark.apache.org/docs/2.1.0/api/python/pyspark.html
+https://stackoverflow.com/questions/3930188/how-to-convert-nonetype-to-int-or-string
+https://stackoverflow.com/questions/32356017/generate-single-json-file-for-pyspark-rdd
+https://github.com/dsp-uga/mauliknshah-p0
+https://web.stanford.edu/class/cs124/lec/naivebayes.pdf
+https://stats.stackexchange.com/questions/163088/how-to-use-log-probabilities-for-gaussian-naive-bayes
+
