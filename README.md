@@ -22,13 +22,12 @@ Bugs : The large dataset runs crashes on small machines. The parameter for the d
 
 2. test-1 : Which contains codes created-updated by Raunak and Aishwarya.
 How to run:
- > python3 preprocessing.py <train_url_location> <test_url_location> <dataset_size> <0-you have y_test else 1 if you dont>
+ > python3 naive_bayes.py <train_url_location> <test_url_location> <dataset_size> <1>
  Further Informamtion: The following code preprocess the text and lables set for the large/small/vsmall sets. 
  It stores it under - ``` 
  X_train_clean.txt, y_train_clean.txt, X_train_clean.txt and y_test_clean.txt (Optional) ```
  in the same folder where it is called. It will automatically collect the data and create these four files
- ***To delete the raw files please uncomment line number 189 and 190***
- If you have y_test i.e. the test lables please enter 0 in command line as the fourth parameter
+ 
 
 
 
@@ -38,7 +37,7 @@ Raunak - Implementation of pre-processing and data-cleaning. Also, one separate 
 Aishwarya - data-dictionary creation, Code Optimization, documentation.
 
 #Results:
-The working model has acheived an accuracy of 90.90%.
+The working model has acheived an accuracy of 92%.
 
 
 #Future Works:
