@@ -12,7 +12,7 @@ import re
 from collections import Counter
 from string import punctuation
 from nltk.stem import PorterStemmer
-ps = PorterStemmer()
+
 #To run this code type python3 preprocessing.py <train_url_location> <test_url_location> <dataset_size> <0-you have y_test else 1 if you dont>
 #The following code preprocess the text and lables set for the large/small/vsmall sets. 
 #It stores it under X_train_clean.txt, y_train_clean.txt, X_train_clean.txt and y_test_clean.txt (Optional)
@@ -44,7 +44,7 @@ def fix_doc(x):
     a=""
     x=x.split(" ")
     for i in range(0,len(x)):
-        if(x[i] not in stopWords.value):
+        if(x[i] not in stopWords.value and (len(x[i])>2)):
             a=a+x[i]+" "
             
     a=a.strip()
@@ -177,7 +177,7 @@ def predict_class(x,a,b,c,d):
             
 
 def read_stop_words():
-    with open("stopWordList.txt") as f:
+    with open("stopWordList_2.txt") as f:
         readStopWords = [x.strip('\n').encode("utf-8") for x in f.readlines()]
         for i in range(0,len(readStopWords)):
             readStopWords[i]=str(readStopWords[i], "utf-8")
