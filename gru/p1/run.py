@@ -472,7 +472,7 @@ if __name__ == "__main__":
     sc = SparkContext.getOrCreate(conf=conf)
  
     #2 Call the naive-Bayes
-    prediction_result = run_naive_bayes('vsmall')
+    predict_nb_lables = run_naive_bayes('large')
 
     #3 Save to location.
     #Save Prediction result to a file.
