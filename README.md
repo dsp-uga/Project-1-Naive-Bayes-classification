@@ -39,6 +39,9 @@ Maulik - Implementation of the Naive-Bayes and accuracy matrix, one separate Imp
 Raunak - Implementation of pre-processing and data-cleaning. Also, one separate implementation of the whole algorithm, documentation
 Aishwarya - data-dictionary creation, Code Optimization, documentation.
 
+#Results:
+The working model has acheived an accuracy of 90.90%.
+
 
 #Future Works:
 Implement N-grams inside this algorithm. 
