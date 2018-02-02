@@ -30,8 +30,6 @@ How to run:
  ***To delete the raw files please uncomment line number 189 and 190***
  If you have y_test i.e. the test lables please enter 0 in command line as the fourth parameter
 
- ***stopwords file is not added here, please use your custom stopwords since i am still building one***
-
 
 
 #Contributors:
