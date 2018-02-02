@@ -43,7 +43,7 @@ Aishwarya - data-dictionary creation, Code Optimization, documentation.
 #Future Works:
 Implement N-grams inside this algorithm. 
 Update the Stop-words for better performance. 
-Better way to articulate the results. 
+Better way to articulate the results. eg. F-Score. 
 
 #References
 http://spark.apache.org/docs/2.1.0/api/python/pyspark.html
